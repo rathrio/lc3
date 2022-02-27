@@ -1,21 +1,21 @@
 #[derive(Debug)]
 pub enum Op {
-    BR,
-    ADD,
-    LD,
-    ST,
-    JSR,
-    AND,
-    LDR,
-    STR,
-    RTI,
-    NOT,
-    LDI,
-    STI,
-    JMP,
-    RES,
-    LEA,
-    TRAP,
+    Br,
+    Add,
+    Ld,
+    St,
+    Jsr,
+    And,
+    Ldr,
+    Str,
+    Rti,
+    Not,
+    Ldi,
+    Sti,
+    Jmp,
+    Res,
+    Lea,
+    Trap,
 }
 
 impl TryFrom<u16> for Op {
@@ -23,22 +23,22 @@ impl TryFrom<u16> for Op {
 
     fn try_from(v: u16) -> Result<Self, <Self as TryFrom<u16>>::Error> {
         match v {
-            v if v == Op::BR as u16 => Ok(Op::BR),
-            v if v == Op::ADD as u16 => Ok(Op::ADD),
-            v if v == Op::LD as u16 => Ok(Op::LD),
-            v if v == Op::ST as u16 => Ok(Op::ST),
-            v if v == Op::JSR as u16 => Ok(Op::JSR),
-            v if v == Op::AND as u16 => Ok(Op::AND),
-            v if v == Op::LDR as u16 => Ok(Op::LDR),
-            v if v == Op::STR as u16 => Ok(Op::STR),
-            v if v == Op::RTI as u16 => Ok(Op::RTI),
-            v if v == Op::NOT as u16 => Ok(Op::NOT),
-            v if v == Op::LDI as u16 => Ok(Op::LDI),
-            v if v == Op::STI as u16 => Ok(Op::STI),
-            v if v == Op::JMP as u16 => Ok(Op::JMP),
-            v if v == Op::RES as u16 => Ok(Op::RES),
-            v if v == Op::LEA as u16 => Ok(Op::LEA),
-            v if v == Op::TRAP as u16 => Ok(Op::TRAP),
+            v if v == Op::Br as u16 => Ok(Op::Br),
+            v if v == Op::Add as u16 => Ok(Op::Add),
+            v if v == Op::Ld as u16 => Ok(Op::Ld),
+            v if v == Op::St as u16 => Ok(Op::St),
+            v if v == Op::Jsr as u16 => Ok(Op::Jsr),
+            v if v == Op::And as u16 => Ok(Op::And),
+            v if v == Op::Ldr as u16 => Ok(Op::Ldr),
+            v if v == Op::Str as u16 => Ok(Op::Str),
+            v if v == Op::Rti as u16 => Ok(Op::Rti),
+            v if v == Op::Not as u16 => Ok(Op::Not),
+            v if v == Op::Ldi as u16 => Ok(Op::Ldi),
+            v if v == Op::Sti as u16 => Ok(Op::Sti),
+            v if v == Op::Jmp as u16 => Ok(Op::Jmp),
+            v if v == Op::Res as u16 => Ok(Op::Res),
+            v if v == Op::Lea as u16 => Ok(Op::Lea),
+            v if v == Op::Trap as u16 => Ok(Op::Trap),
             _ => Err(()),
         }
     }
@@ -47,29 +47,29 @@ impl TryFrom<u16> for Op {
 #[derive(Debug)]
 pub enum Trap {
     /// get character from keyboard, not echoed onto the terminal
-    GETC = 0x20,
+    Getc = 0x20,
     /// output a character
-    OUT = 0x21,
+    Out = 0x21,
     /// output a word string
-    PUTS = 0x22,
+    Puts = 0x22,
     /// get character from keyboard, echoed onto the terminal
-    IN = 0x23,
+    In = 0x23,
     /// output a byte string
-    PUTSP = 0x24,
+    Putsp = 0x24,
     /// halt the program
-    HALT = 0x25,
+    Halt = 0x25,
 }
 
 impl TryFrom<u16> for Trap {
     type Error = ();
     fn try_from(v: u16) -> Result<Self, <Self as TryFrom<u16>>::Error> {
         match v {
-            v if v == Trap::GETC as u16 => Ok(Trap::GETC),
-            v if v == Trap::OUT as u16 => Ok(Trap::OUT),
-            v if v == Trap::PUTS as u16 => Ok(Trap::PUTS),
-            v if v == Trap::IN as u16 => Ok(Trap::IN),
-            v if v == Trap::PUTSP as u16 => Ok(Trap::PUTSP),
-            v if v == Trap::HALT as u16 => Ok(Trap::HALT),
+            v if v == Trap::Getc as u16 => Ok(Trap::Getc),
+            v if v == Trap::Out as u16 => Ok(Trap::Out),
+            v if v == Trap::Puts as u16 => Ok(Trap::Puts),
+            v if v == Trap::In as u16 => Ok(Trap::In),
+            v if v == Trap::Putsp as u16 => Ok(Trap::Putsp),
+            v if v == Trap::Halt as u16 => Ok(Trap::Halt),
             _ => Err(()),
         }
     }

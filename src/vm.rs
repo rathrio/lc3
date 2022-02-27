@@ -132,15 +132,13 @@ impl VM {
     /// ```
     fn trap(&mut self, instr: u16) {
         let trap = instr & 0xff;
-        // let t: Trap = trap.try_into().unwrap();
-        // dbg!(t);
         match trap.try_into() {
-            Ok(Trap::PUTS) => self.puts(),
-            Ok(Trap::HALT) => self.halt(),
-            Ok(Trap::GETC) => self.getc(),
-            Ok(Trap::OUT) => self.out(),
-            Ok(Trap::IN) => self.t_in(),
-            Ok(Trap::PUTSP) => self.putsp(),
+            Ok(Trap::Puts) => self.puts(),
+            Ok(Trap::Halt) => self.halt(),
+            Ok(Trap::Getc) => self.getc(),
+            Ok(Trap::Out) => self.out(),
+            Ok(Trap::In) => self.t_in(),
+            Ok(Trap::Putsp) => self.putsp(),
             Err(_) => (),
         }
     }
@@ -158,7 +156,7 @@ impl VM {
     }
 
     fn halt(&mut self) {
-        println!("\n{}", "HALT");
+        println!("HALT");
         self.running = false;
     }
 
@@ -410,19 +408,19 @@ impl VM {
 
             let op = instr >> 12;
             match op.try_into() {
-                Ok(Op::LEA) => self.lea(instr),
-                Ok(Op::ADD) => self.add(instr),
-                Ok(Op::TRAP) => self.trap(instr),
-                Ok(Op::LD) => self.ld(instr),
-                Ok(Op::JSR) => self.jsr(instr),
-                Ok(Op::BR) => self.br(instr),
-                Ok(Op::ST) => self.st(instr),
-                Ok(Op::STR) => self.str(instr),
-                Ok(Op::AND) => self.and(instr),
-                Ok(Op::LDR) => self.ldr(instr),
-                Ok(Op::JMP) => self.jmp(instr),
-                Ok(Op::NOT) => self.not(instr),
-                Ok(Op::LDI) => self.ldi(instr),
+                Ok(Op::Lea) => self.lea(instr),
+                Ok(Op::Add) => self.add(instr),
+                Ok(Op::Trap) => self.trap(instr),
+                Ok(Op::Ld) => self.ld(instr),
+                Ok(Op::Jsr) => self.jsr(instr),
+                Ok(Op::Br) => self.br(instr),
+                Ok(Op::St) => self.st(instr),
+                Ok(Op::Str) => self.str(instr),
+                Ok(Op::And) => self.and(instr),
+                Ok(Op::Ldr) => self.ldr(instr),
+                Ok(Op::Jmp) => self.jmp(instr),
+                Ok(Op::Not) => self.not(instr),
+                Ok(Op::Ldi) => self.ldi(instr),
                 Ok(o) => panic!("Did not implement op {:#?} ({:#06b})", o, op),
                 Err(_) => (),
             }
