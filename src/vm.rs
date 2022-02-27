@@ -5,6 +5,11 @@ const FL_POS: u16 = 0b001;
 const FL_ZRO: u16 = 0b010;
 const FL_NEG: u16 = 0b100;
 
+/// Keyboard status
+const MR_KBSR: u16 = 0xFE00;
+/// Keyboard data
+const MR_KBDR: u16 = 0xFE02;
+
 /// In C, overflow is automatically handled. In Rust we'll have to be very explicit, so better
 /// return u32 to avoid runtime errors.
 fn sign_extend(mut x: u16, bit_count: u8) -> u32 {
@@ -190,7 +195,8 @@ impl VM {
     fn ld(&mut self, instr: u16) {
         let dr = (instr >> 9) & 0x7;
         let pc_offset = sign_extend(instr & 0x1FF, 9);
-        self.write_register(dr, self.read_memory((self.pc as u32 + pc_offset) as u16));
+        let result = self.read_memory((self.pc as u32 + pc_offset) as u16);
+        self.write_register(dr, result);
     }
 
     /// Jump to Subroutine
@@ -389,7 +395,8 @@ impl VM {
         let offset = sign_extend(instr & 0x1FF, 9);
         let address_of_address = (self.pc as u32 + offset) as u16;
         let address = self.read_memory(address_of_address);
-        self.write_register(dr, self.read_memory(address));
+        let result = self.read_memory(address);
+        self.write_register(dr, result);
     }
 
     pub fn run(&mut self) {
@@ -438,7 +445,16 @@ impl VM {
         self.registers[register as usize]
     }
 
-    fn read_memory(&self, address: u16) -> u16 {
+    fn read_memory(&mut self, address: u16) -> u16 {
+        if address == MR_KBSR {
+            let c = read_char();
+            if c != 0 {
+                self.write_memory(MR_KBSR, 1 << 15);
+                self.write_memory(MR_KBDR, c as u16);
+            } else {
+                self.write_memory(MR_KBSR, 0);
+            }
+        }
         self.memory[address as usize]
     }
 
