@@ -67,6 +67,79 @@ impl VM {
         }
     }
 
+    /// Load Effective Address
+    ///
+    /// ```encoding
+    /// | 1110        | DR      | PCoffset9         |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// DR = PC + SEXT(PCoffset9);
+    /// setcc();
+    /// ```
+    fn lea(&mut self, instr: u16) {
+        let dr = (instr >> 9) & 0b111;
+        let pc_offset = sign_extend(instr & 0x1FF, 9);
+        self.write_register(dr, (self.pc as u32 + pc_offset) as u16);
+    }
+
+    /// Addition
+    ///
+    /// ```encoding
+    /// | 0001        | DR      | SR1   | 0 |     | SR2   |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 | 4 3 | 2 1 0 |
+    ///
+    /// | 0001        | DR      | SR1   | 1 | imm5      |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 | 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// if (bit[5] == 0)
+    ///     DR = SR1 + SR2;
+    /// else
+    ///     DR = SR1 + SEXT(imm5);
+    /// setcc();
+    /// ```
+    fn add(&mut self, instr: u16) {
+        let dr = (instr >> 9) & 0x7;
+        let r1 = (instr >> 6) & 0x7;
+        let imm_flag = (instr >> 5) & 1;
+
+        if imm_flag == 1 {
+            let imm5 = sign_extend(instr & 0x1F, 5);
+            let result = (self.read_register(r1) as u32 + imm5) as u16;
+            self.write_register(dr, result);
+        } else {
+            let r2 = instr & 0b111;
+            self.write_register(
+                dr,
+                (self.read_register(r1) as u32 + self.read_register(r2) as u32) as u16,
+            );
+        }
+    }
+
+    /// System Call
+    ///
+    /// ```encoding
+    /// | 1111        |           | trapvect8       |
+    /// | 15 14 13 12 | 11 10 9 8 | 7 6 5 4 3 2 1 0 |
+    /// ```
+    fn trap(&mut self, instr: u16) {
+        let trap = instr & 0xff;
+        // let t: Trap = trap.try_into().unwrap();
+        // dbg!(t);
+        match trap.try_into() {
+            Ok(Trap::PUTS) => self.puts(),
+            Ok(Trap::HALT) => self.halt(),
+            Ok(Trap::GETC) => self.getc(),
+            Ok(Trap::OUT) => self.out(),
+            Ok(Trap::IN) => self.t_in(),
+            Ok(Trap::PUTSP) => self.putsp(),
+            Err(_) => (),
+        }
+    }
+
     fn puts(&self) {
         let mut address = self.registers[0] as usize;
         let mut string = String::from("");
@@ -82,30 +155,6 @@ impl VM {
     fn halt(&mut self) {
         println!("\n{}", "HALT");
         self.running = false;
-    }
-
-    fn lea(&mut self, instr: u16) {
-        let dr = (instr >> 9) & 0b111;
-        let pc_offset = sign_extend(instr & 0x1FF, 9);
-        self.write_register(dr, (self.pc as u32 + pc_offset) as u16);
-    }
-
-    fn add(&mut self, instr: u16) {
-        let r0 = (instr >> 9) & 0b111;
-        let r1 = (instr >> 6) & 0b111;
-        let imm_flag = (instr >> 5) & 0b1;
-
-        if imm_flag == 1 {
-            let imm5 = sign_extend(instr & 0b11111, 5);
-            let result = (self.read_register(r1) as u32 + imm5) as u16;
-            self.write_register(r0, result);
-        } else {
-            let r2 = instr & 0b111;
-            self.write_register(
-                r0,
-                (self.read_register(r1) as u32 + self.read_register(r2) as u32) as u16,
-            );
-        }
     }
 
     fn getc(&mut self) {
@@ -127,27 +176,46 @@ impl VM {
         todo!();
     }
 
-    fn trap(&mut self, instr: u16) {
-        let trap = instr & 0xff;
-        // let t: Trap = trap.try_into().unwrap();
-        // dbg!(t);
-        match trap.try_into() {
-            Ok(Trap::PUTS) => self.puts(),
-            Ok(Trap::HALT) => self.halt(),
-            Ok(Trap::GETC) => self.getc(),
-            Ok(Trap::OUT) => self.out(),
-            Ok(Trap::IN) => self.t_in(),
-            Ok(Trap::PUTSP) => self.putsp(),
-            Err(_) => (),
-        }
-    }
-
+    /// Load
+    ///
+    /// ```encoding
+    /// | 0010        | DR      | PCoffset9         |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// DR = mem[PC + SEXT(PCoffset9)];
+    /// setcc();
+    /// ```
     fn ld(&mut self, instr: u16) {
-        let r0 = (instr >> 9) & 0x7;
+        let dr = (instr >> 9) & 0x7;
         let pc_offset = sign_extend(instr & 0x1FF, 9);
-        self.write_register(r0, self.read_memory((self.pc as u32 + pc_offset) as u16));
+        self.write_register(dr, self.read_memory((self.pc as u32 + pc_offset) as u16));
     }
 
+    /// Jump to Subroutine
+    ///
+    /// JRS
+    ///
+    /// ```encoding
+    /// | 0100        | 1  | PCoffset11             |
+    /// | 15 14 13 12 | 11 | 10 9 8 7 6 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// JSRR
+    ///
+    /// ```encoding
+    /// | 0100        | 0  |      | BaseR |             |
+    /// | 15 14 13 12 | 11 | 10 9 | 8 7 6 | 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// R7 = PC;
+    /// if (bit[11] == 0)
+    ///     PC = BaseR;
+    /// else
+    ///     PC = PC + SEXT(PCoffset11);
+    /// ```
     fn jsr(&mut self, instr: u16) {
         self.write_register(7, self.pc);
         let jsr_flag = (instr >> 11) & 1;
@@ -160,6 +228,16 @@ impl VM {
         }
     }
 
+    /// Store Base + offset
+    ///
+    /// ```encoding
+    /// | 0111        | SR      | BaseR | offset6     |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// mem[BaseR + SEXT(offset6)] = SR;
+    /// ```
     fn str(&mut self, instr: u16) {
         let sr = self.read_register((instr >> 9) & 0x7);
         let base_r = self.read_register((instr >> 6) & 0x7) as u32;
@@ -167,6 +245,17 @@ impl VM {
         self.write_memory((base_r + offset) as u16, sr);
     }
 
+    /// Conditional Branch
+    ///
+    /// ```encoding
+    /// | 0000        | n  z  p | PCoffset9         |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// if ((n AND N) OR (z AND Z) OR (p AND P))
+    ///     PC = PC + SEXT(PCoffset9);
+    /// ```
     fn br(&mut self, instr: u16) {
         let offset = sign_extend(instr & 0x1FF, 9);
         let cond_flag = (instr >> 9) & 0x7;
@@ -176,6 +265,23 @@ impl VM {
         }
     }
 
+    /// Bit-Wise Logical AND
+    ///
+    /// ```encoding
+    /// | 0101        | DR      | SR1   | 0 |     | SR2   |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 | 4 3 | 2 1 0 |
+    ///
+    /// | 0101        | DR      | SR1   | 1 | imm5      |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 | 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// if (bit[5] == 0)
+    ///     DR = SR1 AND SR2;
+    /// else
+    ///     DR = SR1 AND SEXT(imm5);
+    /// setcc();
+    /// ```
     fn and(&mut self, instr: u16) {
         let dr = (instr >> 9) & 0x7;
         let sr1 = (instr >> 6) & 0x7;
@@ -191,12 +297,33 @@ impl VM {
         }
     }
 
+    /// Store
+    ///
+    /// ```encoding
+    /// | 0011        | SR      | PCoffset9         |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// mem[PC + SEXT(PCoffset9)] = SR;
+    /// ```
     fn st(&mut self, instr: u16) {
         let sr = (instr >> 9) & 0x7;
         let offset = sign_extend(instr & 0x1FF, 9);
         self.write_memory((self.pc as u32 + offset) as u16, self.read_register(sr));
     }
 
+    /// Load Base + offset
+    ///
+    /// ```encoding
+    /// | 0110        | DR      | BaseR | offset6     |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// DR = mem[BaseR + SEXT(offset6)];
+    /// setcc();
+    /// ```
     fn ldr(&mut self, instr: u16) {
         let dr = (instr >> 9) & 0x7;
         let base_r = (instr >> 6) & 0x7;
@@ -207,17 +334,56 @@ impl VM {
         self.write_register(dr, loaded);
     }
 
+    /// Jump
+    ///
+    /// ```encoding
+    /// | 1100        |         | BaseR |             |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// Return from Subroutine
+    ///
+    /// ```encoding
+    /// | 1100        |         | 1 1 1 |             |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// PC = BaseR;
+    /// ```
     fn jmp(&mut self, instr: u16) {
         let base_r = (instr >> 6) & 0x7;
         self.pc = self.read_register(base_r);
     }
 
+    /// Bit-Wise  Complement
+    ///
+    /// ```encoding
+    /// | 1001        | DR      | SR    |             |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 | 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// DR = NOT(SR);
+    /// setcc();
+    /// ```
     fn not(&mut self, instr: u16) {
         let dr = (instr >> 9) & 0x7;
         let sr = (instr >> 6) & 0x7;
         self.write_register(dr, !self.read_register(sr));
     }
 
+    /// Load Indirect
+    ///
+    /// ```encoding
+    /// | 1010        | DR      | PCoffset9         |
+    /// | 15 14 13 12 | 11 10 9 | 8 7 6 5 4 3 2 1 0 |
+    /// ```
+    ///
+    /// ```operation
+    /// DR = mem[mem[PC + SEXT(PCoffset9)]];
+    /// setcc();
+    /// ```
     fn ldi(&mut self, instr: u16) {
         let dr = (instr >> 9) & 0x7;
         let offset = sign_extend(instr & 0x1FF, 9);
@@ -236,7 +402,6 @@ impl VM {
             self.pc += 1;
 
             let op = instr >> 12;
-
             match op.try_into() {
                 Ok(Op::LEA) => self.lea(instr),
                 Ok(Op::ADD) => self.add(instr),

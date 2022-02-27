@@ -14,7 +14,7 @@ fn run(path_to_program: &str) {
 fn main() {
     // https://stackoverflow.com/questions/26321592/how-can-i-read-one-character-from-stdin-without-having-to-hit-enter
     let stdin = 0;
-    let termios = termios::Termios::from_fd(stdin).unwrap();
+    let termios = Termios::from_fd(stdin).unwrap();
     let mut new_termios = termios.clone();
     new_termios.c_iflag &= IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON;
     new_termios.c_lflag &= !(ICANON | ECHO);
