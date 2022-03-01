@@ -1,5 +1,6 @@
 use crate::op::{Op, Trap};
-use std::io::Read;
+use std::io;
+use std::io::{Read, Write};
 
 const FL_POS: u16 = 0b001;
 const FL_ZRO: u16 = 0b010;
@@ -153,10 +154,11 @@ impl VM {
         }
 
         print!("{}", string);
+        io::stdout().flush().unwrap();
     }
 
     fn halt(&mut self) {
-        println!("HALT");
+        println!("\nHALT");
         self.running = false;
     }
 
@@ -170,6 +172,7 @@ impl VM {
 
     fn t_in(&mut self) {
         print!("Enter a character: ");
+        io::stdout().flush().unwrap();
         let c = read_char();
         println!("{}", c as char);
         self.write_register(0, c as u16);
